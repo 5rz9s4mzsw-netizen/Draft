@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>2026 Fantasy Draft Assistant v4</title>
+<title>2026 Fantasy Draft Assistant — V5 Full Board Mock</title>
 <style>
 :root {
   --bg:#090e1a; --panel:#11182a; --panel2:#172139; --line:#293653;
@@ -126,12 +126,18 @@ h1{font-size:20px;margin:0}
 .mock-history-row:last-child{border-bottom:0}
 .mock-history-row .pick{color:#8794ae}
 @media(max-width:760px){.mock-header{flex-direction:column}.site-tabs{padding-left:12px;padding-right:12px}}
+
+.mock-board{min-width:1390px}
+.mock-board .pick.cpu{background:#161f34}
+.mock-board .pick.user{background:#20294a;border-color:#6575ff}
+.mock-board .pick.mine-current{box-shadow:0 0 0 2px var(--good) inset}
+.mock-disabled{opacity:.38;pointer-events:none}
 </style>
 </head>
-<body>
+<body><div id="buildVersion" style="text-align:center;font-size:10px;font-weight:900;opacity:.75;padding:5px 8px">BUILD V5 • FULL BOARD MOCK</div>
 <header>
 <div class="header">
-  <div><h1>🏆 2026 Draft Assistant v4</h1><div class="sub">10-Team • Full PPR • Snake • You draft Team 1</div></div>
+  <div><h1>🏆 2026 Draft Assistant v5 — Full Board Mock</h1><div class="sub">10-Team • Full PPR • Snake • You draft Team 1</div></div>
   <div class="actions"><button class="btn" onclick="undo()">Undo</button><button class="btn" onclick="resetAll()">Reset</button></div>
 </div>
 </header>
@@ -249,47 +255,84 @@ h1{font-size:20px;margin:0}
       </div>
     </div>
 
-    <div id="mockGame" style="display:none">
-      <div class="status">
-        <div class="card"><div class="label">Current Pick</div><div class="big" id="mockPick">1.01</div><div class="small" id="mockTurn">YOUR PICK</div></div>
-        <div class="card"><div class="label">Your Roster</div><div class="big" id="mockRosterCount">0</div><div class="small">players drafted</div></div>
-        <div class="card"><div class="label">Next Pick</div><div class="big" id="mockNextPick">2.01</div><div class="small">after your selection</div></div>
+    
+<div id="mockGame" style="display:none">
+  <div class="strategy">
+    <div class="strategyhead">
+      <div><div class="label">Mock Draft Strategy</div><div style="font-weight:900;margin-top:2px">Same assistant engine • simulated league state</div></div>
+      <div class="badge good" id="mockStrategyBadge">GIBBS LOCK</div>
+    </div>
+    <div class="strategygrid">
+      <div class="mini"><b>1.01</b><span>Jahmyr Gibbs — locked</span></div>
+      <div class="mini"><b>R2–R3</b><span>Henry / Walker preferred</span></div>
+      <div class="mini"><b>Override</b><span>Elite WR value wins</span></div>
+    </div>
+  </div>
+
+  <div class="small" style="margin:-5px 0 12px 2px">
+    Mock state updates after every CPU pick. Your recommendation is evaluated exactly from the players still on the board.
+  </div>
+
+  <div class="status">
+    <div class="card"><div class="label">Current Pick</div><div class="big" id="mockPick">1.01</div><div class="small" id="mockTurn">YOUR PICK</div></div>
+    <div class="card"><div class="label">Your Roster</div><div class="big" id="mockRosterCount">0 / 14</div><div class="small">players drafted</div></div>
+    <div class="card"><div class="label">Next Pick</div><div class="big" id="mockNextPick">2.01</div><div class="small">after your selection</div></div>
+  </div>
+
+  <div class="layout">
+    <div>
+      <div class="panel">
+        <div class="panelhead"><div class="title">Mock Draft Board — same view as Draft Assistant</div><div class="small">CPU picks appear automatically</div></div>
+        <div class="boardwrap" id="mockBoard"></div>
       </div>
 
-      <div class="layout">
-        <div>
-          <div class="card mock-rec">
-            <div class="label">Your Mock Recommendation</div>
-            <div class="big" id="mockRecommendation">—</div>
-            <div class="small" id="mockRecommendationReason">—</div>
-          </div>
+      <div class="panel" style="margin-top:12px">
+        <div class="panelhead"><div class="title">Available Players</div><div class="small" id="mockAvailableCount"></div></div>
+        <div class="tabs">
+          <button class="tab active" onclick="setMockFilter('ALL',this)">All</button>
+          <button class="tab" onclick="setMockFilter('RB',this)">RB</button>
+          <button class="tab" onclick="setMockFilter('WR',this)">WR</button>
+          <button class="tab" onclick="setMockFilter('TE',this)">TE</button>
+          <button class="tab" onclick="setMockFilter('QB',this)">QB</button>
+          <button class="tab" onclick="setMockFilter('DST',this)">D/ST</button>
+          <button class="tab" onclick="setMockFilter('K',this)">K</button>
+        </div>
+        <div class="searchrow"><input class="search" id="mockSearch" placeholder="Search player..." oninput="renderMockAll()"></div>
 
-          <div class="panel mock-panel">
-            <div class="panelhead">
-              <div class="title">Choose Your Player</div>
-              <div class="small" id="mockAvailableCount"></div>
-            </div>
-            <div class="playerlist" id="mockChoices"></div>
+        <div class="rec" id="mockRec">
+          <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
+            <div class="label">Roster-first recommendation</div>
+            <div class="badge" id="mockRecBadge">EVALUATING</div>
           </div>
+          <div class="recmain" id="mockRecommendation">—</div>
+          <div class="recmeta" id="mockRecMeta"></div>
+          <div class="recwhy" id="mockRecommendationReason">—</div>
+          <div class="factorgrid" id="mockRecFactors"></div>
+          <div class="override" id="mockRecOverride" style="display:none"></div>
+          <div class="recgrid" id="mockRecAlts"></div>
         </div>
 
-        <div>
-          <div class="panel">
-            <div class="panelhead"><div class="title">Your Mock Roster</div></div>
-            <div class="roster" id="mockRoster"></div>
-          </div>
-          <div class="panel" style="margin-top:12px">
-            <div class="panelhead"><div class="title">Recent Draft Picks</div></div>
-            <div id="mockHistory" class="mock-history"></div>
-          </div>
-        </div>
+        <div class="playerlist" id="mockChoices"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <div class="panelhead"><div class="title">My Mock Roster</div><div class="small" id="mockRosterCount2">0 / 14</div></div>
+        <div class="need" id="mockNeeds"></div>
+        <div class="roster" id="mockRoster"></div>
+      </div>
+      <div class="panel" style="margin-top:12px">
+        <div class="panelhead"><div class="title">Recent Draft Picks</div></div>
+        <div id="mockHistory" class="mock-history"></div>
       </div>
     </div>
   </div>
 </div>
+</div>
 
 <script>
-const players = [{"id":1,"name":"Bijan Robinson","pos":"RB","team":"ATL","value":100.0,"adp":1,"ecrPos":1,"projection":372.0},{"id":2,"name":"Jahmyr Gibbs","pos":"RB","team":"DET","value":99.5,"adp":2,"ecrPos":2,"projection":372.6},{"id":3,"name":"Puka Nacua","pos":"WR","team":"LAR","value":98.9,"adp":3,"ecrPos":2,"projection":355.9},{"id":4,"name":"Ja'Marr Chase","pos":"WR","team":"CIN","value":98.3,"adp":4,"ecrPos":1,"projection":336.1},{"id":5,"name":"Jaxon Smith-Njigba","pos":"WR","team":"SEA","value":97.8,"adp":5,"ecrPos":3,"projection":324.0},{"id":6,"name":"Amon-Ra St. Brown","pos":"WR","team":"DET","value":97.2,"adp":6,"ecrPos":4,"projection":319.6},{"id":7,"name":"Christian McCaffrey","pos":"RB","team":"SF","value":96.7,"adp":7,"ecrPos":6,"projection":334.8},{"id":8,"name":"Jonathan Taylor","pos":"RB","team":"IND","value":96.2,"adp":8,"ecrPos":4,"projection":312.4},{"id":9,"name":"De'Von Achane","pos":"RB","team":"MIA","value":95.6,"adp":9,"ecrPos":12,"projection":292.0},{"id":10,"name":"Drake London","pos":"WR","team":"ATL","value":95.0,"adp":10,"ecrPos":8,"projection":289.1},{"id":11,"name":"CeeDee Lamb","pos":"WR","team":"DAL","value":94.5,"adp":11,"ecrPos":6,"projection":null},{"id":12,"name":"Justin Jefferson","pos":"WR","team":"MIN","value":94.0,"adp":12,"ecrPos":7,"projection":null},{"id":13,"name":"James Cook III","pos":"RB","team":"BUF","value":93.4,"adp":13,"ecrPos":3,"projection":270.2},{"id":14,"name":"Chase Brown","pos":"RB","team":"CIN","value":92.8,"adp":14,"ecrPos":10,"projection":279.2},{"id":15,"name":"Rashee Rice","pos":"WR","team":"KC","value":92.3,"adp":15,"ecrPos":10,"projection":null},{"id":16,"name":"Ashton Jeanty","pos":"RB","team":"LV","value":91.8,"adp":16,"ecrPos":7,"projection":276.8},{"id":17,"name":"A.J. Brown","pos":"WR","team":"NE","value":91.2,"adp":17,"ecrPos":5,"projection":null},{"id":18,"name":"Derrick Henry","pos":"RB","team":"BAL","value":90.7,"adp":18,"ecrPos":9,"projection":273.1},{"id":19,"name":"George Pickens","pos":"WR","team":"DAL","value":90.1,"adp":19,"ecrPos":11,"projection":null},{"id":20,"name":"Saquon Barkley","pos":"RB","team":"PHI","value":89.5,"adp":20,"ecrPos":11,"projection":266.1},{"id":21,"name":"Omarion Hampton","pos":"RB","team":"LAC","value":89.0,"adp":21,"ecrPos":8,"projection":null},{"id":22,"name":"Nico Collins","pos":"WR","team":"HOU","value":88.5,"adp":22,"ecrPos":9,"projection":null},{"id":23,"name":"Chris Olave","pos":"WR","team":"NO","value":87.9,"adp":23,"ecrPos":12,"projection":null},{"id":24,"name":"Kenneth Walker III","pos":"RB","team":"KC","value":87.3,"adp":24,"ecrPos":5,"projection":null},{"id":25,"name":"Zay Flowers","pos":"WR","team":"BAL","value":86.8,"adp":25,"ecrPos":null,"projection":null},{"id":26,"name":"Garrett Wilson","pos":"WR","team":"NYJ","value":86.2,"adp":26,"ecrPos":null,"projection":null},{"id":27,"name":"Malik Nabers","pos":"WR","team":"NYG","value":85.7,"adp":27,"ecrPos":null,"projection":null},{"id":28,"name":"DeVonta Smith","pos":"WR","team":"PHI","value":85.2,"adp":28,"ecrPos":13,"projection":null},{"id":29,"name":"Jeremiyah Love","pos":"RB","team":"ARI","value":84.6,"adp":29,"ecrPos":null,"projection":null},{"id":30,"name":"Breece Hall","pos":"RB","team":"NYJ","value":84.0,"adp":30,"ecrPos":null,"projection":null},{"id":31,"name":"Trey McBride","pos":"TE","team":"ARI","value":83.5,"adp":31,"ecrPos":2,"projection":254.3},{"id":32,"name":"Josh Jacobs","pos":"RB","team":"GB","value":83.0,"adp":32,"ecrPos":null,"projection":null},{"id":33,"name":"Josh Allen","pos":"QB","team":"BUF","value":82.4,"adp":33,"ecrPos":null,"projection":null},{"id":34,"name":"Kyren Williams","pos":"RB","team":"LAR","value":81.8,"adp":34,"ecrPos":null,"projection":null},{"id":35,"name":"Tetairoa McMillan","pos":"WR","team":"CAR","value":81.3,"adp":35,"ecrPos":null,"projection":null},{"id":36,"name":"Cam Skattebo","pos":"RB","team":"NYG","value":80.8,"adp":36,"ecrPos":null,"projection":null},{"id":37,"name":"Tee Higgins","pos":"WR","team":"CIN","value":80.2,"adp":37,"ecrPos":null,"projection":null},{"id":38,"name":"Brock Bowers","pos":"TE","team":"LV","value":79.7,"adp":38,"ecrPos":1,"projection":243.8},{"id":39,"name":"Emeka Egbuka","pos":"WR","team":"TB","value":79.1,"adp":39,"ecrPos":null,"projection":null},{"id":40,"name":"Javonte Williams","pos":"RB","team":"DAL","value":78.5,"adp":40,"ecrPos":null,"projection":null},{"id":41,"name":"Ladd McConkey","pos":"WR","team":"LAC","value":78.0,"adp":41,"ecrPos":null,"projection":null},{"id":42,"name":"Davante Adams","pos":"WR","team":"LAR","value":77.5,"adp":42,"ecrPos":null,"projection":null},{"id":43,"name":"Travis Etienne Jr.","pos":"RB","team":"NO","value":76.9,"adp":43,"ecrPos":null,"projection":null},{"id":44,"name":"Jameson Williams","pos":"WR","team":"DET","value":76.3,"adp":44,"ecrPos":null,"projection":null},{"id":45,"name":"Jaylen Waddle","pos":"WR","team":"DEN","value":75.8,"adp":45,"ecrPos":null,"projection":null},{"id":46,"name":"Bucky Irving","pos":"RB","team":"TB","value":75.2,"adp":46,"ecrPos":null,"projection":null},{"id":47,"name":"Terry McLaurin","pos":"WR","team":"WAS","value":74.7,"adp":47,"ecrPos":null,"projection":null},{"id":48,"name":"D'Andre Swift","pos":"RB","team":"CHI","value":74.2,"adp":48,"ecrPos":null,"projection":null},{"id":49,"name":"Rome Odunze","pos":"WR","team":"CHI","value":73.6,"adp":49,"ecrPos":null,"projection":null},{"id":50,"name":"Drake Maye","pos":"QB","team":"NE","value":73.0,"adp":50,"ecrPos":null,"projection":null},{"id":51,"name":"DJ Moore","pos":"WR","team":"BUF","value":72.5,"adp":51,"ecrPos":null,"projection":null},{"id":52,"name":"Quinshon Judkins","pos":"RB","team":"CLE","value":72.0,"adp":52,"ecrPos":null,"projection":null},{"id":53,"name":"Mike Evans","pos":"WR","team":"SF","value":71.4,"adp":53,"ecrPos":null,"projection":null},{"id":54,"name":"Bhayshul Tuten","pos":"RB","team":"JAX","value":70.8,"adp":54,"ecrPos":null,"projection":null},{"id":55,"name":"Joe Burrow","pos":"QB","team":"CIN","value":70.3,"adp":55,"ecrPos":null,"projection":null},{"id":56,"name":"Lamar Jackson","pos":"QB","team":"BAL","value":69.8,"adp":56,"ecrPos":null,"projection":null},{"id":57,"name":"Colston Loveland","pos":"TE","team":"CHI","value":69.2,"adp":57,"ecrPos":3,"projection":209.3},{"id":58,"name":"Luther Burden III","pos":"WR","team":"CHI","value":68.7,"adp":58,"ecrPos":null,"projection":null},{"id":59,"name":"Alec Pierce","pos":"WR","team":"IND","value":68.1,"adp":59,"ecrPos":null,"projection":null},{"id":60,"name":"David Montgomery","pos":"RB","team":"HOU","value":67.5,"adp":60,"ecrPos":null,"projection":null},{"id":61,"name":"TreVeyon Henderson","pos":"RB","team":"NE","value":67.0,"adp":61,"ecrPos":null,"projection":null},{"id":62,"name":"Christian Watson","pos":"WR","team":"GB","value":66.4,"adp":62,"ecrPos":null,"projection":null},{"id":63,"name":"Courtland Sutton","pos":"WR","team":"DEN","value":65.9,"adp":63,"ecrPos":null,"projection":null},{"id":64,"name":"Jaylen Warren","pos":"RB","team":"PIT","value":65.3,"adp":64,"ecrPos":null,"projection":null},{"id":65,"name":"Tyler Warren","pos":"TE","team":"IND","value":64.8,"adp":65,"ecrPos":4,"projection":202.2},{"id":66,"name":"DK Metcalf","pos":"WR","team":"PIT","value":64.2,"adp":66,"ecrPos":null,"projection":null},{"id":67,"name":"Dak Prescott","pos":"QB","team":"DAL","value":63.7,"adp":67,"ecrPos":null,"projection":null},{"id":68,"name":"Marvin Harrison Jr.","pos":"WR","team":"ARI","value":63.1,"adp":68,"ecrPos":null,"projection":null},{"id":69,"name":"Parker Washington","pos":"WR","team":"JAX","value":62.6,"adp":69,"ecrPos":null,"projection":null},{"id":70,"name":"Tony Pollard","pos":"RB","team":"TEN","value":62.0,"adp":70,"ecrPos":null,"projection":null},{"id":71,"name":"Rhamondre Stevenson","pos":"RB","team":"NE","value":61.5,"adp":71,"ecrPos":null,"projection":null},{"id":72,"name":"Brian Thomas Jr.","pos":"WR","team":"JAX","value":60.9,"adp":72,"ecrPos":null,"projection":null},{"id":73,"name":"Jayden Daniels","pos":"QB","team":"WAS","value":60.4,"adp":73,"ecrPos":null,"projection":null},{"id":74,"name":"Michael Pittman Jr.","pos":"WR","team":"PIT","value":59.8,"adp":74,"ecrPos":null,"projection":null},{"id":75,"name":"Carnell Tate","pos":"WR","team":"TEN","value":59.3,"adp":75,"ecrPos":null,"projection":null},{"id":76,"name":"Chuba Hubbard","pos":"RB","team":"CAR","value":58.8,"adp":76,"ecrPos":null,"projection":null},{"id":77,"name":"Rico Dowdle","pos":"RB","team":"PIT","value":58.2,"adp":77,"ecrPos":null,"projection":null},{"id":78,"name":"Kyle Pitts Sr.","pos":"TE","team":"ATL","value":57.6,"adp":78,"ecrPos":7,"projection":null},{"id":79,"name":"Harold Fannin Jr.","pos":"TE","team":"CLE","value":57.1,"adp":79,"ecrPos":9,"projection":null},{"id":80,"name":"Michael Wilson","pos":"WR","team":"ARI","value":56.5,"adp":80,"ecrPos":null,"projection":null},{"id":81,"name":"Jalen Hurts","pos":"QB","team":"PHI","value":56.0,"adp":81,"ecrPos":null,"projection":null},{"id":82,"name":"Matthew Stafford","pos":"QB","team":"LAR","value":55.4,"adp":82,"ecrPos":null,"projection":null},{"id":83,"name":"Jadarian Price","pos":"RB","team":"SEA","value":54.9,"adp":83,"ecrPos":null,"projection":null},{"id":84,"name":"Chris Godwin Jr.","pos":"WR","team":"TB","value":54.3,"adp":84,"ecrPos":null,"projection":null},{"id":85,"name":"Josh Downs","pos":"WR","team":"IND","value":53.8,"adp":85,"ecrPos":null,"projection":null},{"id":86,"name":"Wan'Dale Robinson","pos":"WR","team":"TEN","value":53.2,"adp":86,"ecrPos":null,"projection":null},{"id":87,"name":"RJ Harvey","pos":"RB","team":"DEN","value":52.7,"adp":87,"ecrPos":null,"projection":null},{"id":88,"name":"Jakobi Meyers","pos":"WR","team":"JAX","value":52.1,"adp":88,"ecrPos":null,"projection":null},{"id":89,"name":"Sam LaPorta","pos":"TE","team":"DET","value":51.6,"adp":89,"ecrPos":6,"projection":183.5},{"id":90,"name":"Brock Purdy","pos":"QB","team":"SF","value":50.5,"adp":91,"ecrPos":null,"projection":null},{"id":91,"name":"Seattle Defense","pos":"DST","team":"SEA","value":51.0,"adp":90,"ecrPos":null,"projection":null},{"id":92,"name":"Denver Defense","pos":"DST","team":"DEN","value":49.9,"adp":92,"ecrPos":null,"projection":null},{"id":93,"name":"Kenny Gainwell","pos":"RB","team":"TB","value":49.4,"adp":93,"ecrPos":null,"projection":null},{"id":94,"name":"Caleb Williams","pos":"QB","team":"CHI","value":48.8,"adp":94,"ecrPos":null,"projection":null},{"id":95,"name":"Quentin Johnston","pos":"WR","team":"LAC","value":48.3,"adp":95,"ecrPos":null,"projection":null},{"id":96,"name":"Jayden Reed","pos":"WR","team":"GB","value":47.7,"adp":96,"ecrPos":null,"projection":null},{"id":97,"name":"Trevor Lawrence","pos":"QB","team":"JAX","value":47.2,"adp":97,"ecrPos":null,"projection":null},{"id":98,"name":"Stefon Diggs","pos":"WR","team":"WAS","value":46.6,"adp":98,"ecrPos":null,"projection":null},{"id":99,"name":"Jordyn Tyson","pos":"WR","team":"NO","value":46.1,"adp":99,"ecrPos":null,"projection":null},{"id":100,"name":"Houston Defense","pos":"DST","team":"HOU","value":45.5,"adp":100,"ecrPos":null,"projection":null}];
+const players = [{"id":1,"name":"Bijan Robinson","pos":"RB","team":"ATL","value":100.0,"adp":1,"ecrPos":1,"projection":372.0},{"id":2,"name":"Jahmyr Gibbs","pos":"RB","team":"DET","value":99.5,"adp":2,"ecrPos":2,"projection":372.6},{"id":3,"name":"Puka Nacua","pos":"WR","team":"LAR","value":98.9,"adp":3,"ecrPos":2,"projection":355.9},{"id":4,"name":"Ja'Marr Chase","pos":"WR","team":"CIN","value":98.3,"adp":4,"ecrPos":1,"projection":336.1},{"id":5,"name":"Jaxon Smith-Njigba","pos":"WR","team":"SEA","value":97.8,"adp":5,"ecrPos":3,"projection":324.0},{"id":6,"name":"Amon-Ra St. Brown","pos":"WR","team":"DET","value":97.2,"adp":6,"ecrPos":4,"projection":319.6},{"id":7,"name":"Christian McCaffrey","pos":"RB","team":"SF","value":96.7,"adp":7,"ecrPos":6,"projection":334.8},{"id":8,"name":"Jonathan Taylor","pos":"RB","team":"IND","value":96.2,"adp":8,"ecrPos":4,"projection":312.4},{"id":9,"name":"De'Von Achane","pos":"RB","team":"MIA","value":95.6,"adp":9,"ecrPos":12,"projection":292.0},{"id":10,"name":"Drake London","pos":"WR","team":"ATL","value":95.0,"adp":10,"ecrPos":8,"projection":289.1},{"id":11,"name":"CeeDee Lamb","pos":"WR","team":"DAL","value":94.5,"adp":11,"ecrPos":6,"projection":null},{"id":12,"name":"Justin Jefferson","pos":"WR","team":"MIN","value":94.0,"adp":12,"ecrPos":7,"projection":null},{"id":13,"name":"James Cook III","pos":"RB","team":"BUF","value":93.4,"adp":13,"ecrPos":3,"projection":270.2},{"id":14,"name":"Chase Brown","pos":"RB","team":"CIN","value":92.8,"adp":14,"ecrPos":10,"projection":279.2},{"id":15,"name":"Rashee Rice","pos":"WR","team":"KC","value":92.3,"adp":15,"ecrPos":10,"projection":null},{"id":16,"name":"Ashton Jeanty","pos":"RB","team":"LV","value":91.8,"adp":16,"ecrPos":7,"projection":276.8},{"id":17,"name":"A.J. Brown","pos":"WR","team":"NE","value":91.2,"adp":17,"ecrPos":5,"projection":null},{"id":18,"name":"Derrick Henry","pos":"RB","team":"BAL","value":90.7,"adp":18,"ecrPos":9,"projection":273.1},{"id":19,"name":"George Pickens","pos":"WR","team":"DAL","value":90.1,"adp":19,"ecrPos":11,"projection":null},{"id":20,"name":"Saquon Barkley","pos":"RB","team":"PHI","value":89.5,"adp":20,"ecrPos":11,"projection":266.1},{"id":21,"name":"Omarion Hampton","pos":"RB","team":"LAC","value":89.0,"adp":21,"ecrPos":8,"projection":null},{"id":22,"name":"Nico Collins","pos":"WR","team":"HOU","value":88.5,"adp":22,"ecrPos":9,"projection":null},{"id":23,"name":"Chris Olave","pos":"WR","team":"NO","value":87.9,"adp":23,"ecrPos":12,"projection":null},{"id":24,"name":"Kenneth Walker III","pos":"RB","team":"KC","value":87.3,"adp":24,"ecrPos":5,"projection":null},{"id":25,"name":"Zay Flowers","pos":"WR","team":"BAL","value":86.8,"adp":25,"ecrPos":null,"projection":null},{"id":26,"name":"Garrett Wilson","pos":"WR","team":"NYJ","value":86.2,"adp":26,"ecrPos":null,"projection":null},{"id":27,"name":"Malik Nabers","pos":"WR","team":"NYG","value":85.7,"adp":27,"ecrPos":null,"projection":null},{"id":28,"name":"DeVonta Smith","pos":"WR","team":"PHI","value":85.2,"adp":28,"ecrPos":13,"projection":null},{"id":29,"name":"Jeremiyah Love","pos":"RB","team":"ARI","value":84.6,"adp":29,"ecrPos":null,"projection":null},{"id":30,"name":"Breece Hall","pos":"RB","team":"NYJ","value":84.0,"adp":30,"ecrPos":null,"projection":null},{"id":31,"name":"Trey McBride","pos":"TE","team":"ARI","value":83.5,"adp":31,"ecrPos":2,"projection":254.3},{"id":32,"name":"Josh Jacobs","pos":"RB","team":"GB","value":83.0,"adp":32,"ecrPos":null,"projection":null},{"id":33,"name":"Josh Allen","pos":"QB","team":"BUF","value":82.4,"adp":33,"ecrPos":null,"projection":null},{"id":34,"name":"Kyren Williams","pos":"RB","team":"LAR","value":81.8,"adp":34,"ecrPos":null,"projection":null},{"id":35,"name":"Tetairoa McMillan","pos":"WR","team":"CAR","value":81.3,"adp":35,"ecrPos":null,"projection":null},{"id":36,"name":"Cam Skattebo","pos":"RB","team":"NYG","value":80.8,"adp":36,"ecrPos":null,"projection":null},{"id":37,"name":"Tee Higgins","pos":"WR","team":"CIN","value":80.2,"adp":37,"ecrPos":null,"projection":null},{"id":38,"name":"Brock Bowers","pos":"TE","team":"LV","value":79.7,"adp":38,"ecrPos":1,"projection":243.8},{"id":39,"name":"Emeka Egbuka","pos":"WR","team":"TB","value":79.1,"adp":39,"ecrPos":null,"projection":null},{"id":40,"name":"Javonte Williams","pos":"RB","team":"DAL","value":78.5,"adp":40,"ecrPos":null,"projection":null},{"id":41,"name":"Ladd McConkey","pos":"WR","team":"LAC","value":78.0,"adp":41,"ecrPos":null,"projection":null},{"id":42,"name":"Davante Adams","pos":"WR","team":"LAR","value":77.5,"adp":42,"ecrPos":null,"projection":null},{"id":43,"name":"Travis Etienne Jr.","pos":"RB","team":"NO","value":76.9,"adp":43,"ecrPos":null,"projection":null},{"id":44,"name":"Jameson Williams","pos":"WR","team":"DET","value":76.3,"adp":44,"ecrPos":null,"projection":null},{"id":45,"name":"Jaylen Waddle","pos":"WR","team":"DEN","value":75.8,"adp":45,"ecrPos":null,"projection":null},{"id":46,"name":"Bucky Irving","pos":"RB","team":"TB","value":75.2,"adp":46,"ecrPos":null,"projection":null},{"id":47,"name":"Terry McLaurin","pos":"WR","team":"WAS","value":74.7,"adp":47,"ecrPos":null,"projection":null},{"id":48,"name":"D'Andre Swift","pos":"RB","team":"CHI","value":74.2,"adp":48,"ecrPos":null,"projection":null},{"id":49,"name":"Rome Odunze","pos":"WR","team":"CHI","value":73.6,"adp":49,"ecrPos":null,"projection":null},{"id":50,"name":"Drake Maye","pos":"QB","team":"NE","value":73.0,"adp":50,"ecrPos":null,"projection":null},{"id":51,"name":"DJ Moore","pos":"WR","team":"BUF","value":72.5,"adp":51,"ecrPos":null,"projection":null},{"id":52,"name":"Quinshon Judkins","pos":"RB","team":"CLE","value":72.0,"adp":52,"ecrPos":null,"projection":null},{"id":53,"name":"Mike Evans","pos":"WR","team":"SF","value":71.4,"adp":53,"ecrPos":null,"projection":null},{"id":54,"name":"Bhayshul Tuten","pos":"RB","team":"JAX","value":70.8,"adp":54,"ecrPos":null,"projection":null},{"id":55,"name":"Joe Burrow","pos":"QB","team":"CIN","value":70.3,"adp":55,"ecrPos":null,"projection":null},{"id":56,"name":"Lamar Jackson","pos":"QB","team":"BAL","value":69.8,"adp":56,"ecrPos":null,"projection":null},{"id":57,"name":"Colston Loveland","pos":"TE","team":"CHI","value":69.2,"adp":57,"ecrPos":3,"projection":209.3},{"id":58,"name":"Luther Burden III","pos":"WR","team":"CHI","value":68.7,"adp":58,"ecrPos":null,"projection":null},{"id":59,"name":"Alec Pierce","pos":"WR","team":"IND","value":68.1,"adp":59,"ecrPos":null,"projection":null},{"id":60,"name":"David Montgomery","pos":"RB","team":"HOU","value":67.5,"adp":60,"ecrPos":null,"projection":null},{"id":61,"name":"TreVeyon Henderson","pos":"RB","team":"NE","value":67.0,"adp":61,"ecrPos":null,"projection":null},{"id":62,"name":"Christian Watson","pos":"WR","team":"GB","value":66.4,"adp":62,"ecrPos":null,"projection":null},{"id":63,"name":"Courtland Sutton","pos":"WR","team":"DEN","value":65.9,"adp":63,"ecrPos":null,"projection":null},{"id":64,"name":"Jaylen Warren","pos":"RB","team":"PIT","value":65.3,"adp":64,"ecrPos":null,"projection":null},{"id":65,"name":"Tyler Warren","pos":"TE","team":"IND","value":64.8,"adp":65,"ecrPos":4,"projection":202.2},{"id":66,"name":"DK Metcalf","pos":"WR","team":"PIT","value":64.2,"adp":66,"ecrPos":null,"projection":null},{"id":67,"name":"Dak Prescott","pos":"QB","team":"DAL","value":63.7,"adp":67,"ecrPos":null,"projection":null},{"id":68,"name":"Marvin Harrison Jr.","pos":"WR","team":"ARI","value":63.1,"adp":68,"ecrPos":null,"projection":null},{"id":69,"name":"Parker Washington","pos":"WR","team":"JAX","value":62.6,"adp":69,"ecrPos":null,"projection":null},{"id":70,"name":"Tony Pollard","pos":"RB","team":"TEN","value":62.0,"adp":70,"ecrPos":null,"projection":null},{"id":71,"name":"Rhamondre Stevenson","pos":"RB","team":"NE","value":61.5,"adp":71,"ecrPos":null,"projection":null},{"id":72,"name":"Brian Thomas Jr.","pos":"WR","team":"JAX","value":60.9,"adp":72,"ecrPos":null,"projection":null},{"id":73,"name":"Jayden Daniels","pos":"QB","team":"WAS","value":60.4,"adp":73,"ecrPos":null,"projection":null},{"id":74,"name":"Michael Pittman Jr.","pos":"WR","team":"PIT","value":59.8,"adp":74,"ecrPos":null,"projection":null},{"id":75,"name":"Carnell Tate","pos":"WR","team":"TEN","value":59.3,"adp":75,"ecrPos":null,"projection":null},{"id":76,"name":"Chuba Hubbard","pos":"RB","team":"CAR","value":58.8,"adp":76,"ecrPos":null,"projection":null},{"id":77,"name":"Rico Dowdle","pos":"RB","team":"PIT","value":58.2,"adp":77,"ecrPos":null,"projection":null},{"id":78,"name":"Kyle Pitts Sr.","pos":"TE","team":"ATL","value":57.6,"adp":78,"ecrPos":7,"projection":null},{"id":79,"name":"Harold Fannin Jr.","pos":"TE","team":"CLE","value":57.1,"adp":79,"ecrPos":9,"projection":null},{"id":80,"name":"Michael Wilson","pos":"WR","team":"ARI","value":56.5,"adp":80,"ecrPos":null,"projection":null},{"id":81,"name":"Jalen Hurts","pos":"QB","team":"PHI","value":56.0,"adp":81,"ecrPos":null,"projection":null},{"id":82,"name":"Matthew Stafford","pos":"QB","team":"LAR","value":55.4,"adp":82,"ecrPos":null,"projection":null},{"id":83,"name":"Jadarian Price","pos":"RB","team":"SEA","value":54.9,"adp":83,"ecrPos":null,"projection":null},{"id":84,"name":"Chris Godwin Jr.","pos":"WR","team":"TB","value":54.3,"adp":84,"ecrPos":null,"projection":null},{"id":85,"name":"Josh Downs","pos":"WR","team":"IND","value":53.8,"adp":85,"ecrPos":null,"projection":null},{"id":86,"name":"Wan'Dale Robinson","pos":"WR","team":"TEN","value":53.2,"adp":86,"ecrPos":null,"projection":null},{"id":87,"name":"RJ Harvey","pos":"RB","team":"DEN","value":52.7,"adp":87,"ecrPos":null,"projection":null},{"id":88,"name":"Jakobi Meyers","pos":"WR","team":"JAX","value":52.1,"adp":88,"ecrPos":null,"projection":null},{"id":89,"name":"Sam LaPorta","pos":"TE","team":"DET","value":51.6,"adp":89,"ecrPos":6,"projection":183.5},{"id":90,"name":"Brock Purdy","pos":"QB","team":"SF","value":50.5,"adp":91,"ecrPos":null,"projection":null},{"id":91,"name":"Seattle Defense","pos":"DST","team":"SEA","value":51.0,"adp":90,"ecrPos":null,"projection":null},{"id":92,"name":"Denver Defense","pos":"DST","team":"DEN","value":49.9,"adp":92,"ecrPos":null,"projection":null},{"id":93,"name":"Kenny Gainwell","pos":"RB","team":"TB","value":49.4,"adp":93,"ecrPos":null,"projection":null},{"id":94,"name":"Caleb Williams","pos":"QB","team":"CHI","value":48.8,"adp":94,"ecrPos":null,"projection":null},{"id":95,"name":"Quentin Johnston","pos":"WR","team":"LAC","value":48.3,"adp":95,"ecrPos":null,"projection":null},{"id":96,"name":"Jayden Reed","pos":"WR","team":"GB","value":47.7,"adp":96,"ecrPos":null,"projection":null},{"id":97,"name":"Trevor Lawrence","pos":"QB","team":"JAX","value":47.2,"adp":97,"ecrPos":null,"projection":null},{"id":98,"name":"Stefon Diggs","pos":"WR","team":"WAS","value":46.6,"adp":98,"ecrPos":null,"projection":null},{"id":99,"name":"Jordyn Tyson","pos":"WR","team":"NO","value":46.1,"adp":99,"ecrPos":null,"projection":null},{"id":100,"name":"Houston Defense","pos":"DST","team":"HOU","value":45.5,"adp":100,"ecrPos":null,"projection":null},{"id":101,"name":"Chris Bell","pos":"WR","team":"R","value":44.6,"adp":101,"ecrPos":null,"projection":null},{"id":102,"name":"Chimere Dike","pos":"WR","team":"TEN","value":44.2,"adp":102,"ecrPos":null,"projection":null},{"id":103,"name":"Denzel Boston","pos":"WR","team":"R","value":43.7,"adp":103,"ecrPos":null,"projection":null},{"id":104,"name":"Justin Herbert","pos":"QB","team":"LAC","value":43.3,"adp":104,"ecrPos":null,"projection":null},{"id":105,"name":"Kenneth Gainwell","pos":"RB","team":"PIT","value":42.9,"adp":105,"ecrPos":null,"projection":null},{"id":106,"name":"Jaxson Dart","pos":"QB","team":"NYG","value":42.5,"adp":106,"ecrPos":null,"projection":null},{"id":107,"name":"Tyrone Tracy","pos":"RB","team":"NYG","value":42.1,"adp":107,"ecrPos":null,"projection":null},{"id":108,"name":"Kaytron Allen","pos":"RB","team":"R","value":41.6,"adp":108,"ecrPos":null,"projection":null},{"id":109,"name":"Brandon Aubrey","pos":"K","team":"DAL","value":41.2,"adp":109,"ecrPos":null,"projection":null},{"id":110,"name":"Nicholas Singleton","pos":"RB","team":"R","value":40.8,"adp":110,"ecrPos":null,"projection":null},{"id":111,"name":"Emmett Johnson","pos":"RB","team":"R","value":40.4,"adp":111,"ecrPos":null,"projection":null},{"id":112,"name":"Travis Kelce","pos":"TE","team":"KC","value":40.0,"adp":112,"ecrPos":null,"projection":null},{"id":113,"name":"KC Concepcion","pos":"WR","team":"R","value":39.1,"adp":114,"ecrPos":null,"projection":null},{"id":114,"name":"Germie Bernard","pos":"WR","team":"R","value":38.7,"adp":115,"ecrPos":null,"projection":null},{"id":115,"name":"Ricky Pearsall","pos":"WR","team":"SF","value":37.4,"adp":118,"ecrPos":null,"projection":null},{"id":116,"name":"James Conner","pos":"RB","team":"ARI","value":37.0,"adp":119,"ecrPos":null,"projection":null},{"id":117,"name":"Jauan Jennings","pos":"WR","team":"SF","value":36.6,"adp":120,"ecrPos":null,"projection":null},{"id":118,"name":"Dallas Goedert","pos":"TE","team":"PHI","value":36.2,"adp":121,"ecrPos":null,"projection":null},{"id":119,"name":"Deebo Samuel","pos":"WR","team":"WAS","value":35.8,"adp":122,"ecrPos":null,"projection":null},{"id":120,"name":"Rashid Shaheed","pos":"WR","team":"SEA","value":35.3,"adp":123,"ecrPos":null,"projection":null},{"id":121,"name":"Xavier Worthy","pos":"WR","team":"KC","value":34.5,"adp":125,"ecrPos":null,"projection":null},{"id":122,"name":"Bo Nix","pos":"QB","team":"DEN","value":34.1,"adp":126,"ecrPos":null,"projection":null},{"id":123,"name":"Dalton Kincaid","pos":"TE","team":"BUF","value":33.7,"adp":127,"ecrPos":null,"projection":null},{"id":124,"name":"J.K. Dobbins","pos":"RB","team":"DEN","value":33.2,"adp":128,"ecrPos":null,"projection":null},{"id":125,"name":"Patrick Mahomes","pos":"QB","team":"KC","value":32.8,"adp":129,"ecrPos":null,"projection":null},{"id":126,"name":"Baker Mayfield","pos":"QB","team":"TB","value":32.0,"adp":131,"ecrPos":null,"projection":null},{"id":127,"name":"Tyjae Spears","pos":"RB","team":"TEN","value":31.6,"adp":132,"ecrPos":null,"projection":null},{"id":128,"name":"T.J. Hockenson","pos":"TE","team":"MIN","value":31.1,"adp":133,"ecrPos":null,"projection":null},{"id":129,"name":"Jordan Love","pos":"QB","team":"GB","value":30.7,"adp":134,"ecrPos":null,"projection":null},{"id":130,"name":"Jake Ferguson","pos":"TE","team":"DAL","value":30.3,"adp":135,"ecrPos":null,"projection":null},{"id":131,"name":"Alvin Kamara","pos":"RB","team":"NO","value":29.9,"adp":136,"ecrPos":null,"projection":null},{"id":132,"name":"Tyreek Hill","pos":"WR","team":"MIA","value":29.5,"adp":137,"ecrPos":null,"projection":null},{"id":133,"name":"Dylan Sampson","pos":"RB","team":"CLE","value":29.0,"adp":138,"ecrPos":null,"projection":null},{"id":134,"name":"Ty Simpson","pos":"QB","team":"MIN","value":25.5,"adp":142,"ecrPos":null,"projection":null},{"id":135,"name":"Chris Brazzell","pos":"WR","team":"R","value":27.8,"adp":141,"ecrPos":null,"projection":null},{"id":136,"name":"Jared Goff","pos":"QB","team":"DET","value":27.4,"adp":142,"ecrPos":null,"projection":null},{"id":137,"name":"Isaiah Likely","pos":"TE","team":"BAL","value":26.9,"adp":143,"ecrPos":null,"projection":null},{"id":138,"name":"Matthew Golden","pos":"WR","team":"GB","value":26.5,"adp":144,"ecrPos":null,"projection":null},{"id":139,"name":"Brenton Strange","pos":"TE","team":"JAX","value":26.1,"adp":145,"ecrPos":null,"projection":null},{"id":140,"name":"Pat Bryant","pos":"WR","team":"DEN","value":25.7,"adp":146,"ecrPos":null,"projection":null},{"id":141,"name":"George Kittle","pos":"TE","team":"SF","value":25.3,"adp":147,"ecrPos":null,"projection":null}];
 
 const TOTAL_TEAMS=10, TOTAL_ROUNDS=14, TOTAL_PICKS=140, USER_TEAM=1;
 let drafted = JSON.parse(localStorage.getItem("drafted2026") || "{}");
@@ -354,28 +397,58 @@ function mockBaseScore(p,team,round){
   if(round<=4&&p.pos==="WR"&&c.WR>=2&&c.RB<2)s-=8;
   return s;
 }
+
 function mockCPUChoose(teamIndex,round){
   const team=mockState.teams[teamIndex-1];
   const avail=mockState.players.filter(p=>!mockState.taken.has(Number(p.id)));
-  const scored=avail.map(p=>({p,score:mockBaseScore(p,team,round)})).sort((a,b)=>b.score-a.score);
+  const c=mockCounts(team.roster);
+
+  // Behavior-first CPU: market is the anchor, but not the dictator.
+  // This intentionally avoids "take the highest true-value player" behavior.
+  const scored=avail.map(p=>{
+    const adpScore=p.adp ? Math.max(15,100-(p.adp-1)*0.58) : 35;
+    const valueScore=p.value||35;
+    const expertScore=p.ecrPos ? Math.max(35,100-(p.ecrPos-1)*5) : valueScore;
+    const projScore=p.projection ? Math.max(40,Math.min(100,45+(p.projection-160)*.25)) : valueScore;
+    let score=adpScore*.52 + expertScore*.16 + valueScore*.10 + projScore*.07 + mockNeedScore(p.pos,c,round);
+
+    if(team.style==="WR"&&p.pos==="WR")score+=6;
+    if(team.style==="RB"&&p.pos==="RB")score+=6;
+    if(team.style==="TE"&&p.pos==="TE")score+=7;
+    if(team.style==="VALUE")score+=(typeof positionalScarcity==="function"?positionalScarcity(p):0)*.55;
+
+    // Draft behavior: early QBs/TEs are slightly discounted unless the team likes them.
+    if(round<=4&&p.pos==="QB")score-=8;
+    if(round<=3&&p.pos==="TE"&&team.style!=="TE")score-=4;
+    if(round<=9&&["K","DST"].includes(p.pos))score-=40;
+
+    // Mild roster construction pressure.
+    if(round<=5&&c.RB>=2&&p.pos==="RB"&&c.WR<2)score-=9;
+    if(round<=5&&c.WR>=2&&p.pos==="WR"&&c.RB<2)score-=9;
+
+    return {p,score};
+  }).sort((a,b)=>b.score-a.score);
+
+  // Smart randomness: most picks come from the top 7, but occasionally the
+  // CPU reaches/falls into the top 10-12 when the score gap is small.
   const topN=Math.min(7,scored.length);
   const pool=scored.slice(0,topN);
-  const temp=round<=2?.85:round<=6?1.1:1.35;
+  const temp=round<=2?.75:round<=6?1.0:1.25;
   const weights=pool.map((x,i)=>Math.exp(-i/temp));
-  let r=Math.random()*weights.reduce((a,b)=>a+b,0);
-  let chosen=pool[0];
+  let r=Math.random()*weights.reduce((a,b)=>a+b,0), chosen=pool[0];
   for(let i=0;i<pool.length;i++){r-=weights[i];if(r<=0){chosen=pool[i];break;}}
-  if(Math.random()<.08 && scored.length>topN){
-    const wider=scored.slice(topN,Math.min(topN+5,scored.length));
-    if(wider.length){
-      const w=wider[Math.floor(Math.random()*wider.length)];
-      if(w.score>=chosen.score*.90)chosen=w;
-    }
+
+  if(Math.random()<.12 && scored.length>topN){
+    const wider=scored.slice(topN,Math.min(12,scored.length));
+    const w=wider[Math.floor(Math.random()*wider.length)];
+    if(w && w.score>=chosen.score*.88)chosen=w;
   }
+
   mockState.taken.add(Number(chosen.p.id));
   team.roster.push(chosen.p);
   return chosen.p;
 }
+
 function mockAvailable(){
   return mockState.players.filter(p=>!mockState.taken.has(Number(p.id)));
 }
@@ -427,35 +500,145 @@ function mockReason(best){
   if(c.RB>=2&&best.p.pos==="WR")return "Two RB starters are covered, so the engine is hunting WR value.";
   return "Roster fit + player value + expert signal + ADP + scarcity + next-pick risk.";
 }
-function mockRender(){
-  const rec=mockRecommendations();
-  const best=rec[0];
-  const pick=mockState.currentPick;
-  const next=mockNextUserPick(pick);
-  document.getElementById("mockPick").textContent=mockLabel(pick);
-  document.getElementById("mockTurn").textContent="YOUR PICK";
-  document.getElementById("mockNextPick").textContent=next?mockLabel(next):"—";
-  document.getElementById("mockRosterCount").textContent=mockState.teams[0].roster.length;
-  document.getElementById("mockStatus").textContent="YOUR TURN";
-  document.getElementById("mockRecommendation").textContent=best?best.p.name:"—";
-  document.getElementById("mockRecommendationReason").textContent=best?mockReason(best):"";
-  document.getElementById("mockAvailableCount").textContent=mockAvailable().length+" available";
 
-  document.getElementById("mockChoices").innerHTML=rec.slice(0,12).map(x=>`
+let mockFilter="ALL";
+
+function setMockFilter(pos,btn){
+  mockFilter=pos;
+  document.querySelectorAll("#mockGame .tabs .tab").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  renderMockAll();
+}
+
+function mockRosterNeeds(){
+  const c=mockCounts(mockState.teams[0].roster);
+  return [
+    ["QB",Math.max(0,1-c.QB)],["RB",Math.max(0,2-c.RB)],["WR",Math.max(0,2-c.WR)],
+    ["TE",Math.max(0,1-c.TE)],["FLEX",Math.max(0,1-Math.max(0,c.RB-2)-Math.max(0,c.WR-2)-Math.max(0,c.TE-1))],
+    ["D/ST",Math.max(0,1-c.DST)],["K",Math.max(0,1-c.K)]
+  ];
+}
+
+function mockBoardHTML(){
+  let h='<div class="sleeperboard mock-board"><div class="teamrow"><div class="teamhead">ROUND</div>';
+  for(let team=1;team<=10;team++) h+=`<div class="teamhead ${team===1?"you":""}">${team===1?"YOU":"TEAM "+team}</div>`;
+  h+='</div>';
+
+  for(let r=1;r<=14;r++){
+    h+=`<div class="roundrow"><div class="roundlabel"><strong>R${r}</strong><span>${r%2===1?"→":"←"}</span></div>`;
+    for(let team=1;team<=10;team++){
+      const slot=r%2===1?team:11-team;
+      const n=(r-1)*10+slot;
+      const info=mockPickInfo(n);
+      const d=mockState.history.find(x=>x.pick===n);
+      const cls=["pick"];
+      if(team===1)cls.push("user");
+      if(n===mockState.currentPick)cls.push("mine-current");
+      h+=`<div class="${cls.join(" ")}">
+        <div class="pickno">${mockLabel(n)} • #${n}</div>
+        <div class="pickteam">${info.team===1?"YOUR PICK":"TEAM "+info.team}</div>
+        <div class="pickplayer ${d?"":"empty"}">${d?d.player.name:"Empty"}</div>
+        <div class="pickdir">${r%2===1?"→":"←"}</div>
+      </div>`;
+    }
+    h+='</div>';
+  }
+  h+='<div class="boardhint">CPU selections populate automatically. Your pick is highlighted when the simulation pauses.</div></div>';
+  return h;
+}
+
+function mockFactorScores(p){
+  const c=mockCounts(mockState.teams[0].roster), next=mockNextUserPick(mockState.currentPick);
+  const market=p.adp?Math.max(25,100-(p.adp-1)*.55):p.value;
+  const expert=p.ecrPos?Math.max(35,100-(p.ecrPos-1)*5):p.value;
+  const fit=(p.pos==="RB"&&c.RB<2)||(p.pos==="WR"&&c.WR<2)||(p.pos==="TE"&&c.TE<1)||(p.pos==="QB"&&c.QB<1)?92:62;
+  const av=next&&p.adp?projectedAvailability(p,next).prob:null;
+  return {market:Math.round(market),expert:Math.round(expert),fit,urgency:av===null?60:Math.round((1-av)*100)};
+}
+
+function renderMockRecommendation(){
+  const list=mockRecommendations(), best=list[0];
+  if(!best)return;
+  const pick=mockState.currentPick, next=mockNextUserPick(pick), c=mockCounts(mockState.teams[0].roster);
+  const conf=list.length<2?95:Math.max(55,Math.min(96,Math.round(55+(list[0].score-list[1].score)*2)));
+  const badge=document.getElementById("mockRecBadge");
+  badge.textContent=conf>=85?"STRONG PICK":conf>=70?"GOOD PICK":"CLOSE CALL";
+  badge.className="badge "+(conf>=85?"good":conf>=70?"warn":"");
+  document.getElementById("mockRecommendation").textContent=best.p.name;
+
+  const av=next&&best.p.adp?projectedAvailability(best.p,next):{prob:null};
+  document.getElementById("mockRecMeta").innerHTML=[
+    `<span class="pill">${best.p.pos} • ${best.p.team}</span>`,
+    `<span class="pill">Score ${best.score.toFixed(1)}</span>`,
+    `<span class="pill">${conf}% confidence</span>`,
+    `<span class="pill">ADP ${best.p.adp||"—"}</span>`,
+    `<span class="pill">Next ${next?mockLabel(next):"—"}</span>`,
+    `<span class="pill">Avail ${av.prob===null?"—":Math.round(av.prob*100)+"%"}</span>`
+  ].join("");
+
+  let reason="Best blend of market, expert signal, player value, roster fit, scarcity and next-pick risk.";
+  if(pick===1&&best.p.name==="Jahmyr Gibbs")reason="Your 1.01 plan is Gibbs.";
+  else if(pick>=20&&pick<=21&&c.RB<2&&(best.p.name==="Derrick Henry"||best.p.name==="Kenneth Walker III"))
+    reason="Your RB preference is active, while still allowing an elite-WR override.";
+  else if(c.RB>=2&&best.p.pos==="WR")reason="Your two-RB foundation is covered, so the engine is hunting WR value.";
+  document.getElementById("mockRecommendationReason").textContent=reason;
+
+  const f=mockFactorScores(best.p);
+  document.getElementById("mockRecFactors").innerHTML=[
+    ["Market",f.market],["Expert",f.expert],["Roster fit",f.fit],["Pick urgency",f.urgency]
+  ].map(x=>`<div class="mini factor"><div class="label">${x[0]}</div><div class="big">${x[1]}</div></div>`).join("");
+
+  const ov=document.getElementById("mockRecOverride");
+  const override=typeof eliteWROverride==="function"&&eliteWROverride(best.p,pick,c);
+  ov.style.display=override?"block":"none";
+  if(override)ov.textContent="🔥 STRATEGY OVERRIDE — Elite WR value is strong enough to override the RB preference.";
+
+  document.getElementById("mockRecAlts").innerHTML=list.slice(1,4).map(x=>{
+    const av2=next&&x.p.adp?projectedAvailability(x.p,next):{prob:null};
+    return `<div class="recalt"><b>${x.p.name}</b><br><span style="color:#8f9ab4">${x.p.pos} • ${x.score.toFixed(1)} • ADP ${x.p.adp||"—"} • ${av2.prob===null?"—":Math.round(av2.prob*100)+"% to next pick"}</span></div>`;
+  }).join("");
+}
+
+function renderMockAll(){
+  if(!mockState)return;
+  document.getElementById("mockBoard").innerHTML=mockBoardHTML();
+
+  const q=(document.getElementById("mockSearch").value||"").toLowerCase();
+  const rec=mockRecommendations();
+  const list=rec.filter(x=>mockFilter==="ALL"||x.p.pos===mockFilter)
+    .filter(x=>x.p.name.toLowerCase().includes(q));
+
+  document.getElementById("mockAvailableCount").textContent=list.length+" available";
+  document.getElementById("mockChoices").innerHTML=list.map(x=>`
     <div class="player" onclick="mockUserPick(${Number(x.p.id)})">
       <div class="rank">ADP ${x.p.adp||"—"}</div>
       <div><div class="pname">${x.p.name}</div><div class="meta">${x.p.pos} • ${x.p.team}</div></div>
       <div class="val">${Math.round(x.score)}</div>
-    </div>
-  `).join("");
+    </div>`).join("") || `<div class="small" style="padding:14px">No available players match this filter.</div>`;
 
-  document.getElementById("mockRoster").innerHTML=mockState.teams[0].roster.map((p,i)=>`
-    <div class="slot"><strong>${mockLabel(mockState.userPicks[i])}</strong><span>${p.name} <span style="color:#8794ae">(${p.pos})</span></span></div>
-  `).join("") || `<div class="small" style="padding:8px">No picks yet.</div>`;
+  renderMockRecommendation();
 
-  document.getElementById("mockHistory").innerHTML=mockState.history.slice(-24).reverse().map(x=>`
-    <div class="mock-history-row"><span><span class="pick">${mockLabel(x.pick)}</span> ${x.team}</span><b>${x.player.name}</b></div>
-  `).join("");
+  const roster=mockState.teams[0].roster;
+  document.getElementById("mockRosterCount").textContent=roster.length+" / 14";
+  document.getElementById("mockRosterCount2").textContent=roster.length+" / 14";
+  document.getElementById("mockRoster").innerHTML=roster.map((p,i)=>{
+    const hp=mockState.history.find(x=>x.team==="YOU"&&x.player.id===p.id);
+    return `<div class="slot"><strong>${hp?mockLabel(hp.pick):"—"}</strong><span>${p.name} <span style="color:#8794ae">(${p.pos})</span></span></div>`;
+  }).join("") || `<div class="small" style="padding:8px">No picks yet.</div>`;
+
+  document.getElementById("mockNeeds").innerHTML=mockRosterNeeds().map(n=>
+    `<div class="needrow"><span>${n[0]}</span><b class="${n[1]?"warn":"good"}">${n[1]?"Need "+n[1]:"Filled"}</b></div>`).join("");
+
+  document.getElementById("mockHistory").innerHTML=mockState.history.slice(-24).reverse().map(x=>
+    `<div class="mock-history-row"><span><span class="pick">${mockLabel(x.pick)}</span> ${x.team}</span><b>${x.player.name}</b></div>`).join("");
+}
+
+function mockRender(){
+  const next=mockNextUserPick(mockState.currentPick);
+  document.getElementById("mockPick").textContent=mockLabel(mockState.currentPick);
+  document.getElementById("mockTurn").textContent=mockPickInfo(mockState.currentPick).team===USER_TEAM?"YOUR PICK":"CPU";
+  document.getElementById("mockNextPick").textContent=next?mockLabel(next):"—";
+  renderMockAll();
 }
 function mockAdvanceToUser(){
   while(mockState.currentPick<=mockState.maxPick && mockPickInfo(mockState.currentPick).team!==USER_TEAM){
@@ -487,8 +670,6 @@ function mockUserPick(id){
 }
 function startMockDraft(){
   const pool=allPlayers().map(p=>({...p}));
-  // The starter pool currently contains 100 players, so the mock intentionally
-  // runs 10 rounds until we expand the underlying player pool to 140+ players.
   mockState={
     players:pool,
     teams:mockInitTeams(),
@@ -496,7 +677,7 @@ function startMockDraft(){
     history:[],
     userPicks:[],
     currentPick:1,
-    maxPick:Math.min(TOTAL_PICKS,pool.length)
+    maxPick:TOTAL_PICKS
   };
   document.getElementById("mockStartBtn").style.display="none";
   document.getElementById("mockResetBtn").style.display="inline-block";
@@ -506,6 +687,7 @@ function startMockDraft(){
 }
 function resetMockDraft(){
   mockState=null;
+  mockFilter="ALL";
   document.getElementById("mockStartBtn").style.display="inline-block";
   document.getElementById("mockResetBtn").style.display="none";
   document.getElementById("mockIntro").style.display="block";
