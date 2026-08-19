@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>2026 Fantasy Draft Assistant v4</title>
+<title>2026 Fantasy Draft Assistant v5</title>
 <style>
 :root {
   --bg:#090e1a; --panel:#11182a; --panel2:#172139; --line:#293653;
@@ -122,23 +122,38 @@ h1{font-size:20px;margin:0}
 .mockrow{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #202b42;font-size:12px}
 .mockrow:last-child{border-bottom:0}.mockteam{font-weight:900}.mockpick{color:#7f8ba5}
 .mockmine{background:#17243d;border-radius:8px;padding:2px 6px;font-size:9px;color:#aebdff}
+
+.app-tabs{max-width:1200px;margin:0 auto;padding:10px 12px 0;display:flex;gap:8px}
+.app-tab{border:1px solid #34415f;border-radius:10px 10px 0 0;background:#202b45;color:#cbd3e5;padding:10px 15px;font-weight:900;font-size:12px;cursor:pointer}
+.app-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.mock-wrap{max-width:1200px;margin:0 auto;padding:14px 12px 30px}
+.mock-title{font-weight:900;margin-top:2px}
+.mock-controls{margin:10px 0}
+.mock-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.mock-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+.mock-choices .btn{min-height:48px;white-space:normal}
+.mock-roster,.mock-history{margin-top:8px}
+.mock-player,.mock-history-row{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid #202b42;font-size:12px}
+.mock-player:last-child,.mock-history-row:last-child{border-bottom:0}
+.mock-player .name,.mock-history-row .name{font-weight:900}
+.mock-muted{color:#7f8ba5}
+@media(max-width:600px){.mock-choices{grid-template-columns:1fr}.app-tab{flex:1}}
 </style>
 </head>
 <body>
 <header>
 <div class="header">
-  <div><h1>🏆 2026 Draft Assistant v4</h1><div class="sub">10-Team • Full PPR • Snake • You draft Team 1</div></div>
+  <div><h1>🏆 2026 Draft Assistant v5</h1><div class="sub">10-Team • Full PPR • Snake • You draft Team 1</div></div>
   <div class="actions"><button class="btn" onclick="undo()">Undo</button><button class="btn" onclick="resetAll()">Reset</button></div>
 </div>
 </header>
-
-<div class="app-tabs" id="appTabs">
-  <button class="app-tab active" data-app-tab="draft">Draft Assistant</button>
-  <button class="app-tab" data-app-tab="mock">🧪 Mock Draft</button>
-</div>
-
 <div id="draftScreen" class="app-screen active">
-<div class="container">
+
+<div class="app-tabs">
+  <button type="button" class="app-tab active" id="draftTabBtn">Draft Assistant</button>
+  <button type="button" class="app-tab" id="mockTabBtn">🧪 Mock Draft</button>
+</div>
+<div id="draftScreen" class="app-screen active"><div class="container">
   <div class="strategy">
     <div class="strategyhead">
       <div><div class="label">Your Draft Plan</div><div style="font-weight:900;margin-top:2px">Gibbs 1.01 • RB preference with an elite-WR override</div></div>
@@ -549,295 +564,7 @@ function renderRecommendation(){
 }
 
 
-// V4 SMART MOCK DRAFT
-const MOCK_TEAMS=10, MOCK_ROUNDS=15, MOCK_USER=0;
-let mock=null;
-
-function mockTeamAtPick(n){
-  const r=Math.floor((n-1)/MOCK_TEAMS), w=(n-1)%MOCK_TEAMS;
-  return r%2===0?w:MOCK_TEAMS-1-w;
-}
-function mockLabel(n){
-  const r=Math.floor((n-1)/MOCK_TEAMS)+1, s=mockTeamAtPick(n)+1;
-  return `${r}.${String(s).padStart(2,"0")}`;
-}
-function mockCounts(roster){
-  const c={QB:0,RB:0,WR:0,TE:0,DST:0,K:0};
-  roster.forEach(p=>{if(c[p.pos]!==undefined)c[p.pos]++}); return c;
-}
-function mockNeed(pos,c,r){
-  if(pos==="RB"&&c.RB<2)return 22;
-  if(pos==="WR"&&c.WR<2)return 22;
-  if(pos==="TE"&&c.TE<1)return r>=5?15:4;
-  if(pos==="QB"&&c.QB<1)return r>=6?12:2;
-  if(pos==="DST"&&c.DST<1)return r>=12?12:-25;
-  if(pos==="K"&&c.K<1)return r>=14?12:-30;
-  return ["RB","WR","TE"].includes(pos)?7:0;
-}
-function mockScore(p,t,r){
-  const market=p.adp?Math.max(20,100-(p.adp-1)*.55):p.value;
-  const expert=p.ecrPos?Math.max(35,100-(p.ecrPos-1)*5):p.value;
-  const projection=p.projection?Math.max(45,Math.min(100,45+(p.projection-160)*.30)):p.value;
-  const c=mockCounts(t.roster);
-  let s=market*.42+p.value*.12+expert*.18+projection*.14+mockNeed(p.pos,c,r);
-  if(r<10&&["K","DST"].includes(p.pos))s-=35;
-  if(r<5&&p.pos==="QB")s-=7;
-  if(t.style==="WR"&&p.pos==="WR")s+=5;
-  if(t.style==="RB"&&p.pos==="RB")s+=5;
-  if(t.style==="TE"&&p.pos==="TE")s+=7;
-  if(t.style==="VALUE")s+=positionalScarcity(p)*.7;
-  if(r<=4&&p.pos==="RB"&&c.RB>=2&&c.WR<2)s-=8;
-  if(r<=4&&p.pos==="WR"&&c.WR>=2&&c.RB<2)s-=8;
-  return s;
-}
-function mockInit(){
-  const styles=["ADP","WR","RB","VALUE","BALANCED","TE","RB","WR","VALUE"];
-  return Array.from({length:MOCK_TEAMS},(_,i)=>({
-    id:i,name:i===0?"YOU":`CPU ${i}`,roster:[],style:i===0?"USER":styles[(i-1)%styles.length]
-  }));
-}
-function mockCPU(teamIndex,round){
-  const t=mock.teams[teamIndex];
-  const a=mock.players.filter(p=>!mock.taken.has(p.id));
-  const scored=a.map(p=>({p,score:mockScore(p,t,round)})).sort((x,y)=>y.score-x.score);
-  const temp=round<=2?.85:round<=6?1.1:1.35, n=Math.min(7,scored.length);
-  const pool=scored.slice(0,n), weights=pool.map((x,i)=>Math.exp(-i/temp));
-  let r=Math.random()*weights.reduce((a,b)=>a+b,0), chosen=pool[0];
-  for(let i=0;i<pool.length;i++){r-=weights[i];if(r<=0){chosen=pool[i];break}}
-  if(Math.random()<.08&&scored.length>n){
-    const wider=scored.slice(n,Math.min(12,scored.length));
-    if(wider.length){const w=wider[Math.floor(Math.random()*wider.length)];
-      if(w.score>=chosen.score*.90)chosen=w;}
-  }
-  mock.taken.add(chosen.p.id);t.roster.push(chosen.p);return chosen.p;
-}
-function mockNextUser(after){
-  for(let n=after+1;n<=MOCK_TEAMS*MOCK_ROUNDS;n++)
-    if(mockTeamAtPick(n)===MOCK_USER)return n;
-  return null;
-}
-function mockRec(){
-  const a=mock.players.filter(p=>!mock.taken.has(p.id)), c=mockCounts(mock.teams[0].roster), pick=mock.currentPick;
-  const next=mockNextUser(pick);
-  return a.map(p=>{
-    const market=p.adp?Math.max(20,100-(p.adp-1)*.55):p.value;
-    const expert=p.ecrPos?Math.max(35,100-(p.ecrPos-1)*5):p.value;
-    const projection=p.projection?Math.max(45,Math.min(100,45+(p.projection-160)*.30)):p.value;
-    let s=market*.38+p.value*.18+expert*.16+projection*.14;
-    if(p.pos==="RB"&&c.RB<2)s+=14;if(p.pos==="WR"&&c.WR<2)s+=15;
-    if(p.pos==="TE"&&c.TE<1)s+=9;if(["RB","WR","TE"].includes(p.pos))s+=5;
-    if(next&&p.adp){const av=projectedAvailability(p,next);if(av.prob!==null)s+=(1-av.prob)*7}
-    if(p.pos==="QB"&&pick<50)s-=7;if(["DST","K"].includes(p.pos)&&pick<105)s-=30;
-    if(pick>=20&&pick<=21&&c.RB<2&&(p.name==="Derrick Henry"||p.name==="Kenneth Walker III"))s+=10;
-    if(c.RB>=2&&p.pos==="WR")s+=8;if(eliteWROverride(p,pick,c))s+=14;
-    return {p,score:s};
-  }).sort((a,b)=>b.score-a.score);
-}
-function mockRender(){
-  const user=mockTeamAtPick(mock.currentPick)===0;
-  document.getElementById("mockCurrent").style.display="block";
-  document.getElementById("mockLogWrap").style.display="block";
-  document.getElementById("mockPickLabel").textContent=mockLabel(mock.currentPick);
-  document.getElementById("mockTurnBadge").textContent=user?"YOUR PICK":"CPU";
-  document.getElementById("mockYourPlayers").innerHTML=mock.teams[0].roster.map(p=>
-    `<div class="player-row"><div class="rank">${p.pos}</div><div><div class="pname">${p.name}</div><div class="meta">${p.team}</div></div><div class="val">${p.adp||"—"}</div></div>`).join("");
-  document.getElementById("mockLog").innerHTML=mock.history.slice(-20).reverse().map(x=>
-    `<div class="mockrow"><span><span class="mockpick">${mockLabel(x.pick)}</span> <span class="mockteam">${x.team}</span></span><span>${x.player.name} <span class="mockmine">${x.player.pos}</span></span></div>`).join("");
-  if(user){
-    const rec=mockRec(), best=rec[0];
-    document.getElementById("mockStatus").textContent="YOUR TURN";
-    document.getElementById("mockRecName").textContent=best.p.name;
-    document.getElementById("mockRecWhy").textContent=decisionReason(best.p,best.score,rec);
-    document.getElementById("mockPickReason").textContent="The CPU has completed every pick until your turn. Choose your player below.";
-    document.getElementById("mockOptions").innerHTML=rec.slice(0,6).map(x=>
-      `<button class="btn ${x.p.id===best.p.id?"primary":""}" onclick="mockUserPick(${x.p.id})">${x.p.name}<br><small>${x.p.pos} • ADP ${x.p.adp||"—"}</small></button>`).join("");
-  }else{
-    document.getElementById("mockStatus").textContent="CPU";
-    document.getElementById("mockRecName").textContent="CPU is drafting…";
-    document.getElementById("mockOptions").innerHTML="";
-  }
-}
-function mockAdvance(){
-  while(mock.currentPick<=MOCK_TEAMS*MOCK_ROUNDS&&mockTeamAtPick(mock.currentPick)!==0){
-    const team=mockTeamAtPick(mock.currentPick), round=Math.floor((mock.currentPick-1)/MOCK_TEAMS)+1;
-    const p=mockCPU(team,round);mock.history.push({pick:mock.currentPick,team:mock.teams[team].name,player:p});mock.currentPick++;
-  }
-  if(mock.currentPick>MOCK_TEAMS*MOCK_ROUNDS){
-    document.getElementById("mockStatus").textContent="COMPLETE";
-    document.getElementById("mockPickReason").textContent="Mock complete. Your final roster is shown above.";return;
-  }
-  mockRender();
-}
-function mockUserPick(id){
-  if(!mock||mockTeamAtPick(mock.currentPick)!==0)return;
-  const p=mock.players.find(x=>x.id===id);if(!p||mock.taken.has(id))return;
-  mock.taken.add(id);mock.teams[0].roster.push(p);
-  mock.history.push({pick:mock.currentPick,team:"YOU",player:p});mock.currentPick++;mockAdvance();
-}
-function startMock(){
-  mock={teams:mockInit(),players:allPlayers().map(p=>({...p})),taken:new Set(),history:[],currentPick:1};
-  document.getElementById("mockStart").style.display="none";
-  document.getElementById("mockReset").style.display="inline-flex";
-  mockAdvance();
-}
-function resetMock(){
-  mock=null;document.getElementById("mockStart").style.display="inline-flex";
-  document.getElementById("mockReset").style.display="none";
-  document.getElementById("mockCurrent").style.display="none";
-  document.getElementById("mockLogWrap").style.display="none";
-  document.getElementById("mockStatus").textContent="READY";
-}
-
-
-// =========================
-// V4 SMART MOCK DRAFT ENGINE
-// =========================
-const MOCK_TEAMS=10, MOCK_ROUNDS=15, MOCK_USER=0;
-let mock=null;
-
-function mockTeamAtPick(n){
-  const r=Math.floor((n-1)/MOCK_TEAMS), w=(n-1)%MOCK_TEAMS;
-  return r%2===0 ? w : MOCK_TEAMS-1-w;
-}
-function mockLabel(n){
-  const r=Math.floor((n-1)/MOCK_TEAMS)+1, s=mockTeamAtPick(n)+1;
-  return `${r}.${String(s).padStart(2,"0")}`;
-}
-function mockCounts(roster){
-  const c={QB:0,RB:0,WR:0,TE:0,DST:0,K:0};
-  roster.forEach(p=>{if(c[p.pos]!==undefined)c[p.pos]++}); return c;
-}
-function mockNeed(pos,c,r){
-  if(pos==="RB"&&c.RB<2)return 22;
-  if(pos==="WR"&&c.WR<2)return 22;
-  if(pos==="TE"&&c.TE<1)return r>=5?15:4;
-  if(pos==="QB"&&c.QB<1)return r>=6?12:2;
-  if(pos==="DST"&&c.DST<1)return r>=12?12:-25;
-  if(pos==="K"&&c.K<1)return r>=14?12:-30;
-  return ["RB","WR","TE"].includes(pos)?7:0;
-}
-function mockScore(p,t,r){
-  const market=p.adp?Math.max(20,100-(p.adp-1)*.55):p.value;
-  const expert=p.ecrPos?Math.max(35,100-(p.ecrPos-1)*5):p.value;
-  const projection=p.projection?Math.max(45,Math.min(100,45+(p.projection-160)*.30)):p.value;
-  const c=mockCounts(t.roster);
-  let s=market*.42+p.value*.12+expert*.18+projection*.14+mockNeed(p.pos,c,r);
-  if(r<10&&["K","DST"].includes(p.pos))s-=35;
-  if(r<5&&p.pos==="QB")s-=7;
-  if(t.style==="WR"&&p.pos==="WR")s+=5;
-  if(t.style==="RB"&&p.pos==="RB")s+=5;
-  if(t.style==="TE"&&p.pos==="TE")s+=7;
-  if(t.style==="VALUE"&&typeof positionalScarcity==="function")s+=positionalScarcity(p)*.7;
-  if(r<=4&&p.pos==="RB"&&c.RB>=2&&c.WR<2)s-=8;
-  if(r<=4&&p.pos==="WR"&&c.WR>=2&&c.RB<2)s-=8;
-  return s;
-}
-function mockInit(){
-  const styles=["ADP","WR","RB","VALUE","BALANCED","TE","RB","WR","VALUE"];
-  return Array.from({length:MOCK_TEAMS},(_,i)=>({
-    id:i,name:i===0?"YOU":`CPU ${i}`,roster:[],style:i===0?"USER":styles[(i-1)%styles.length]
-  }));
-}
-function mockCPU(teamIndex,round){
-  const t=mock.teams[teamIndex];
-  const a=mock.players.filter(p=>!mock.taken.has(p.id));
-  const scored=a.map(p=>({p,score:mockScore(p,t,round)})).sort((x,y)=>y.score-x.score);
-  const temp=round<=2?.85:round<=6?1.1:1.35, n=Math.min(7,scored.length);
-  const pool=scored.slice(0,n), weights=pool.map((x,i)=>Math.exp(-i/temp));
-  let r=Math.random()*weights.reduce((a,b)=>a+b,0), chosen=pool[0];
-  for(let i=0;i<pool.length;i++){r-=weights[i];if(r<=0){chosen=pool[i];break}}
-  if(Math.random()<.08&&scored.length>n){
-    const wider=scored.slice(n,Math.min(12,scored.length));
-    if(wider.length){const w=wider[Math.floor(Math.random()*wider.length)];
-      if(w.score>=chosen.score*.90)chosen=w;}
-  }
-  mock.taken.add(chosen.p.id);t.roster.push(chosen.p);return chosen.p;
-}
-function mockNextUser(after){
-  for(let n=after+1;n<=MOCK_TEAMS*MOCK_ROUNDS;n++)
-    if(mockTeamAtPick(n)===MOCK_USER)return n;
-  return null;
-}
-function mockRec(){
-  const a=mock.players.filter(p=>!mock.taken.has(p.id));
-  const c=mockCounts(mock.teams[0].roster), pick=mock.currentPick, next=mockNextUser(pick);
-  return a.map(p=>{
-    const market=p.adp?Math.max(20,100-(p.adp-1)*.55):p.value;
-    const expert=p.ecrPos?Math.max(35,100-(p.ecrPos-1)*5):p.value;
-    const projection=p.projection?Math.max(45,Math.min(100,45+(p.projection-160)*.30)):p.value;
-    let s=market*.38+p.value*.18+expert*.16+projection*.14;
-    if(p.pos==="RB"&&c.RB<2)s+=14;
-    if(p.pos==="WR"&&c.WR<2)s+=15;
-    if(p.pos==="TE"&&c.TE<1)s+=9;
-    if(["RB","WR","TE"].includes(p.pos))s+=5;
-    if(next&&p.adp&&typeof projectedAvailability==="function"){
-      const av=projectedAvailability(p,next); if(av.prob!==null)s+=(1-av.prob)*7;
-    }
-    if(p.pos==="QB"&&pick<50)s-=7;
-    if(["DST","K"].includes(p.pos)&&pick<105)s-=30;
-    if(pick>=20&&pick<=21&&c.RB<2&&(p.name==="Derrick Henry"||p.name==="Kenneth Walker III"))s+=10;
-    if(c.RB>=2&&p.pos==="WR")s+=8;
-    if(typeof eliteWROverride==="function"&&eliteWROverride(p,pick,c))s+=14;
-    return {p,score:s};
-  }).sort((a,b)=>b.score-a.score);
-}
-function mockRender(){
-  const user=mockTeamAtPick(mock.currentPick)===0;
-  document.getElementById("mockCurrent").style.display="block";
-  document.getElementById("mockLogWrap").style.display="block";
-  document.getElementById("mockPickLabel").textContent=mockLabel(mock.currentPick);
-  document.getElementById("mockTurnBadge").textContent=user?"YOUR PICK":"CPU";
-  document.getElementById("mockYourPlayers").innerHTML=mock.teams[0].roster.map(p=>
-    `<div class="player"><div class="rank">${p.pos}</div><div><div class="pname">${p.name}</div><div class="meta">${p.team}</div></div><div class="val">${p.adp||"—"}</div></div>`).join("");
-  document.getElementById("mockLog").innerHTML=mock.history.slice(-24).reverse().map(x=>
-    `<div class="mockrow"><span><span class="mockpick">${mockLabel(x.pick)}</span> <span class="mockteam">${x.team}</span></span><span>${x.player.name} <span class="mockmine">${x.player.pos}</span></span></div>`).join("");
-  if(user){
-    const rec=mockRec(), best=rec[0];
-    document.getElementById("mockStatus").textContent="YOUR TURN";
-    document.getElementById("mockRecName").textContent=best.p.name;
-    document.getElementById("mockRecWhy").textContent=
-      `Roster-first mock recommendation. ${best.p.pos} • ADP ${best.p.adp||"—"} • score ${best.score.toFixed(1)}.`;
-    document.getElementById("mockPickReason").textContent="The CPU has completed every pick until your turn. Choose a player below.";
-    document.getElementById("mockOptions").innerHTML=rec.slice(0,6).map(x=>
-      `<button class="btn ${x.p.id===best.p.id?"primary":""}" onclick="mockUserPick(${x.p.id})">${x.p.name}<br><small>${x.p.pos} • ADP ${x.p.adp||"—"}</small></button>`).join("");
-  }
-}
-function mockAdvance(){
-  while(mock.currentPick<=MOCK_TEAMS*MOCK_ROUNDS&&mockTeamAtPick(mock.currentPick)!==0){
-    const team=mockTeamAtPick(mock.currentPick), round=Math.floor((mock.currentPick-1)/MOCK_TEAMS)+1;
-    const p=mockCPU(team,round);
-    mock.history.push({pick:mock.currentPick,team:mock.teams[team].name,player:p});
-    mock.currentPick++;
-  }
-  if(mock.currentPick>MOCK_TEAMS*MOCK_ROUNDS){
-    document.getElementById("mockStatus").textContent="COMPLETE";
-    document.getElementById("mockPickReason").textContent="Mock complete. Your final roster is shown above.";
-    return;
-  }
-  mockRender();
-}
-function mockUserPick(id){
-  if(!mock||mockTeamAtPick(mock.currentPick)!==0)return;
-  const p=mock.players.find(x=>x.id===id); if(!p||mock.taken.has(id))return;
-  mock.taken.add(id); mock.teams[0].roster.push(p);
-  mock.history.push({pick:mock.currentPick,team:"YOU",player:p});
-  mock.currentPick++; mockAdvance();
-}
-function startMock(){
-  mock={teams:mockInit(),players:allPlayers().map(p=>({...p})),taken:new Set(),history:[],currentPick:1};
-  document.getElementById("mockStart").style.display="none";
-  document.getElementById("mockReset").style.display="inline-flex";
-  mockAdvance();
-}
-function resetMock(){
-  mock=null;
-  document.getElementById("mockStart").style.display="inline-flex";
-  document.getElementById("mockReset").style.display="none";
-  document.getElementById("mockCurrent").style.display="none";
-  document.getElementById("mockLogWrap").style.display="none";
-  document.getElementById("mockStatus").textContent="READY";
-}
-
+/
 function renderBoard() {
   // Sleeper-style orientation: each manager is a fixed column.
   // Rounds run top-to-bottom; snake picks reverse direction every round.
@@ -953,19 +680,198 @@ document.addEventListener("DOMContentLoaded",function(){
   document.getElementById("mockStart")?.addEventListener("click",startMock);
   document.getElementById("mockReset")?.addEventListener("click",resetMock);
 });
+(function(){
+  "use strict";
 
-document.addEventListener("DOMContentLoaded",function(){
-  document.querySelectorAll(".app-tab").forEach(tab=>{
-    tab.addEventListener("click",()=>{
-      const isMock=tab.dataset.appTab==="mock";
-      document.querySelectorAll(".app-tab").forEach(t=>t.classList.toggle("active",t===tab));
-      document.getElementById("draftScreen").classList.toggle("active",!isMock);
-      document.getElementById("mockScreen").classList.toggle("active",isMock);
+  let MD = null;
+  const TEAMS = 10, ROUNDS = 15, USER = 0;
+
+  function teamAtPick(n){
+    const round = Math.floor((n-1)/TEAMS);
+    const slot = (n-1)%TEAMS;
+    return round%2===0 ? slot : TEAMS-1-slot;
+  }
+  function pickLabel(n){
+    const round=Math.floor((n-1)/TEAMS)+1;
+    return round+"."+String(teamAtPick(n)+1).padStart(2,"0");
+  }
+  function counts(roster){
+    const c={QB:0,RB:0,WR:0,TE:0,DST:0,K:0};
+    roster.forEach(p=>{if(c[p.pos]!=null)c[p.pos]++;});
+    return c;
+  }
+  function need(pos,c,round){
+    if(pos==="RB"&&c.RB<2)return 22;
+    if(pos==="WR"&&c.WR<2)return 22;
+    if(pos==="TE"&&c.TE<1)return round>=5?15:4;
+    if(pos==="QB"&&c.QB<1)return round>=6?12:2;
+    if(pos==="DST"&&c.DST<1)return round>=12?12:-30;
+    if(pos==="K"&&c.K<1)return round>=14?12:-30;
+    return ["RB","WR","TE"].includes(pos)?7:0;
+  }
+  function cpuScore(p,t,round){
+    const market=p.adp?Math.max(20,100-(p.adp-1)*.55):p.value||50;
+    const expert=p.ecrPos?Math.max(35,100-(p.ecrPos-1)*5):p.value||50;
+    const proj=p.projection?Math.max(45,Math.min(100,45+(p.projection-160)*.3)):p.value||50;
+    const c=counts(t.roster);
+    let s=market*.42+(p.value||50)*.12+expert*.18+proj*.14+need(p.pos,c,round);
+    if(round<10&&["K","DST"].includes(p.pos))s-=35;
+    if(round<5&&p.pos==="QB")s-=7;
+    if(t.style==="WR"&&p.pos==="WR")s+=5;
+    if(t.style==="RB"&&p.pos==="RB")s+=5;
+    if(t.style==="TE"&&p.pos==="TE")s+=7;
+    if(round<=4&&p.pos==="RB"&&c.RB>=2&&c.WR<2)s-=8;
+    if(round<=4&&p.pos==="WR"&&c.WR>=2&&c.RB<2)s-=8;
+    return s;
+  }
+  function initTeams(){
+    const styles=["ADP","WR","RB","VALUE","BALANCED","TE","RB","WR","VALUE"];
+    return Array.from({length:TEAMS},(_,i)=>({
+      name:i===0?"YOU":"CPU "+i, roster:[], style:i===0?"USER":styles[(i-1)%styles.length]
+    }));
+  }
+  function chooseCPU(teamIndex,round){
+    const team=MD.teams[teamIndex];
+    const available=MD.players.filter(p=>!MD.taken.has(p.id));
+    const scored=available.map(p=>({p,score:cpuScore(p,team,round)})).sort((a,b)=>b.score-a.score);
+    const top=Math.min(7,scored.length);
+    const temp=round<=2?.85:round<=6?1.1:1.35;
+    const pool=scored.slice(0,top);
+    const weights=pool.map((x,i)=>Math.exp(-i/temp));
+    let r=Math.random()*weights.reduce((a,b)=>a+b,0), chosen=pool[0];
+    for(let i=0;i<pool.length;i++){r-=weights[i];if(r<=0){chosen=pool[i];break;}}
+    if(Math.random()<.08 && scored.length>top){
+      const wider=scored.slice(top,Math.min(top+5,scored.length));
+      const w=wider[Math.floor(Math.random()*wider.length)];
+      if(w && w.score>=chosen.score*.90)chosen=w;
+    }
+    MD.taken.add(chosen.p.id);
+    team.roster.push(chosen.p);
+    return chosen.p;
+  }
+  function nextUserPick(n){
+    for(let x=n+1;x<=TEAMS*ROUNDS;x++)if(teamAtPick(x)===USER)return x;
+    return null;
+  }
+  function recommendation(){
+    const avail=MD.players.filter(p=>!MD.taken.has(p.id));
+    const c=counts(MD.teams[0].roster), pick=MD.current, next=nextUserPick(pick);
+    return avail.map(p=>{
+      let s=cpuScore(p,MD.teams[0],Math.floor((pick-1)/TEAMS)+1);
+      if(p.pos==="RB"&&c.RB<2)s+=14;
+      if(p.pos==="WR"&&c.WR<2)s+=15;
+      if(c.RB>=2&&p.pos==="WR")s+=8;
+      if(p.pos==="QB"&&pick<50)s-=7;
+      if(["K","DST"].includes(p.pos)&&pick<105)s-=30;
+      // User's stated early-RB strategy is a modest preference, not a lock.
+      if(pick>=20&&pick<=21&&c.RB<2&&(p.name==="Derrick Henry"||p.name==="Kenneth Walker III"))s+=10;
+      if(next && p.adp){
+        const distance=next-p.adp;
+        if(distance>0)s+=Math.min(8,distance*.12);
+      }
+      return {p,score:s};
+    }).sort((a,b)=>b.score-a.score);
+  }
+  function render(){
+    if(!MD)return;
+    const user=teamAtPick(MD.current)===USER;
+    document.getElementById("mockPickText").textContent=pickLabel(MD.current);
+    document.getElementById("mockTurnText").textContent=user?"YOUR PICK":"CPU";
+    document.getElementById("mockStatus").textContent=user?"YOUR TURN":"CPU";
+    document.getElementById("mockMessage").textContent=user?
+      "The CPU has completed every selection until your pick. Choose a player below.":
+      "CPU is making a smart roster-aware selection…";
+
+    const roster=MD.teams[0].roster;
+    document.getElementById("mockRoster").innerHTML=roster.length?
+      roster.map(p=>`<div class="mock-player"><span class="name">${p.name}</span><span class="mock-muted">${p.pos} • ADP ${p.adp||"—"}</span></div>`).join(""):
+      '<div class="mock-muted">No picks yet.</div>';
+
+    document.getElementById("mockHistory").innerHTML=MD.history.slice(-20).reverse().map(x=>
+      `<div class="mock-history-row"><span><b>${pickLabel(x.pick)}</b> ${x.team}</span><span class="name">${x.player.name} <span class="mock-muted">${x.player.pos}</span></span></div>`
+    ).join("");
+
+    const choices=document.getElementById("mockChoices");
+    if(user){
+      const rec=recommendation(), best=rec[0];
+      document.getElementById("mockRecText").textContent=best.p.name;
+      document.getElementById("mockRecReason").textContent=
+        `${best.p.pos} • ADP ${best.p.adp||"—"} • roster-first score ${best.score.toFixed(1)}.`;
+      choices.innerHTML=rec.slice(0,8).map(x=>
+        `<button type="button" class="btn ${x.p.id===best.p.id?"primary":""}" data-player-id="${x.p.id}">
+          ${x.p.name}<br><small>${x.p.pos} • ADP ${x.p.adp||"—"}</small>
+        </button>`).join("");
+    }else{
+      document.getElementById("mockRecText").textContent="CPU is drafting…";
+      document.getElementById("mockRecReason").textContent="No action needed.";
+      choices.innerHTML="";
+    }
+  }
+  function advance(){
+    while(MD.current<=TEAMS*ROUNDS && teamAtPick(MD.current)!==USER){
+      const ti=teamAtPick(MD.current);
+      const round=Math.floor((MD.current-1)/TEAMS)+1;
+      const p=chooseCPU(ti,round);
+      MD.history.push({pick:MD.current,team:MD.teams[ti].name,player:p});
+      MD.current++;
+    }
+    if(MD.current>TEAMS*ROUNDS){
+      document.getElementById("mockStatus").textContent="COMPLETE";
+      document.getElementById("mockMessage").textContent="Mock complete.";
+      return;
+    }
+    render();
+  }
+  function start(){
+    if(typeof allPlayers!=="function"){
+      alert("Player data could not be loaded.");
+      return;
+    }
+    const players=allPlayers().map(p=>({...p}));
+    players.forEach((p,i)=>{if(p.id==null)p.id=i+1;});
+    MD={players,teams:initTeams(),taken:new Set(),history:[],current:1};
+    document.getElementById("mockStartBtn").style.display="none";
+    document.getElementById("mockResetBtn").style.display="inline-flex";
+    document.getElementById("mockIntro").style.display="none";
+    document.getElementById("mockGame").style.display="block";
+    advance();
+  }
+  function reset(){
+    MD=null;
+    document.getElementById("mockStartBtn").style.display="inline-flex";
+    document.getElementById("mockResetBtn").style.display="none";
+    document.getElementById("mockIntro").style.display="block";
+    document.getElementById("mockGame").style.display="none";
+    document.getElementById("mockStatus").textContent="READY";
+  }
+
+  document.addEventListener("DOMContentLoaded",function(){
+    document.getElementById("draftTabBtn").addEventListener("click",function(){
+      document.getElementById("draftScreen").style.display="block";
+      document.getElementById("mockScreen").style.display="none";
+      this.classList.add("active"); document.getElementById("mockTabBtn").classList.remove("active");
+    });
+    document.getElementById("mockTabBtn").addEventListener("click",function(){
+      document.getElementById("draftScreen").style.display="none";
+      document.getElementById("mockScreen").style.display="block";
+      this.classList.add("active"); document.getElementById("draftTabBtn").classList.remove("active");
+    });
+    document.getElementById("mockStartBtn").addEventListener("click",start);
+    document.getElementById("mockResetBtn").addEventListener("click",reset);
+    document.getElementById("mockChoices").addEventListener("click",function(e){
+      const btn=e.target.closest("[data-player-id]");
+      if(!btn||!MD||teamAtPick(MD.current)!==USER)return;
+      const id=Number(btn.dataset.playerId);
+      const p=MD.players.find(x=>Number(x.id)===id);
+      if(!p||MD.taken.has(p.id))return;
+      MD.taken.add(p.id);
+      MD.teams[0].roster.push(p);
+      MD.history.push({pick:MD.current,team:"YOU",player:p});
+      MD.current++;
+      advance();
     });
   });
-  document.getElementById("mockStart")?.addEventListener("click",startMock);
-  document.getElementById("mockReset")?.addEventListener("click",resetMock);
-});
+})();
 
 </script>
 
@@ -1027,6 +933,65 @@ document.addEventListener("DOMContentLoaded",function(){
   </div>
 </div>
 
+</div>
+</div></div>
+<div id="mockScreen" class="app-screen" style="display:none">
+  <div class="mock-wrap">
+    <div class="strategy">
+      <div class="strategyhead">
+        <div>
+          <div class="label">Practice Mode</div>
+          <div class="mock-title">Smart CPU Mock Draft</div>
+        </div>
+        <div class="badge good" id="mockStatus">READY</div>
+      </div>
+      <div class="strategygrid">
+        <div class="mini"><b>10 teams</b><span>Full PPR</span></div>
+        <div class="mini"><b>Your slot</b><span>1.01</span></div>
+        <div class="mini"><b>Rounds</b><span>15</span></div>
+      </div>
+    </div>
+
+    <div class="controls mock-controls">
+      <button type="button" class="btn primary" id="mockStartBtn">Start New Mock</button>
+      <button type="button" class="btn" id="mockResetBtn" style="display:none">Reset Mock</button>
+    </div>
+
+    <div class="rec" id="mockIntro">
+      <div class="label">CPU strategy</div>
+      <div class="recwhy">
+        Smart randomness — CPU teams consider ADP, player value, positional needs,
+        roster construction and scarcity. They are not locked to ADP.
+      </div>
+    </div>
+
+    <div id="mockGame" style="display:none">
+      <div class="rec">
+        <div class="mock-top">
+          <div><div class="label">Current pick</div><div class="recmain" id="mockPickText">1.01</div></div>
+          <div class="badge good" id="mockTurnText">YOUR PICK</div>
+        </div>
+        <div class="recwhy" id="mockMessage">Choose your player.</div>
+      </div>
+
+      <div class="rec">
+        <div class="label">Recommendation</div>
+        <div class="recmain" id="mockRecText">—</div>
+        <div class="recwhy" id="mockRecReason">—</div>
+        <div id="mockChoices" class="mock-choices"></div>
+      </div>
+
+      <div class="rec">
+        <div class="label">Your Mock Roster</div>
+        <div id="mockRoster" class="mock-roster"></div>
+      </div>
+
+      <div class="rec">
+        <div class="label">Recent Picks</div>
+        <div id="mockHistory" class="mock-history"></div>
+      </div>
+    </div>
+  </div>
 </div>
 </body>
 </html>
